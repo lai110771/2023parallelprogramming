@@ -1,6 +1,6 @@
 #include <cstring>
 #include <iostream>
-
+#include <algorithm>
 #include "vv-aes.h"
 
 /**
@@ -10,21 +10,26 @@
  */
 void substitute_bytes() {
     // For each byte in the message
-    for (int column = 0; column < BLOCK_SIZE; column++) {
-        for (int row = 0; row < BLOCK_SIZE; row++) {
+    /*
+        bad cache usage
+    */
+    int dict[UNIQUE_CHARACTERS];
+    for (int i = 0; i < UNIQUE_CHARACTERS; ++i)
+    {
+        uint8_t Key = originalCharacter[i];
+        dict[Key] = substitutedCharacter[i];
+    }
+
+    for (int row = 0; row < BLOCK_SIZE; row++) {
+        for (int column = 0; column < BLOCK_SIZE; column++) {
             // Search for the byte in the original character list
             // and replace it with corresponding the element in the substituted character list
-            int index = -1;
-            for (int i = 0; i < UNIQUE_CHARACTERS; i++) {
-                if (originalCharacter[i] == message[row][column]) {
-                    index = i;
-                }
-            }
 
-            message[row][column] = substitutedCharacter[index];
+            message[row][column] = dict[message[row][column]];
         }
     }
 }
+
 
 /*
  * This function shifts (rotates) a row in the message array by one place to the left.
@@ -48,13 +53,14 @@ void shift_row(int row) {
  * This corresponds to step 2.2 in the VV-AES explanation.
  */
 void shift_rows() {
+    int shifts = 1;
     // Shift each row, where the row index corresponds to how many columns the data is shifted.
-    for (int row = 0; row < BLOCK_SIZE; ++row) {
-        for (int shifts = 0; shifts < row; ++shifts) {
-            shift_row(row);
-        }
+    for (int row = 1; row < BLOCK_SIZE; ++row) {
+	    std::rotate(std::begin(message[row]), std::begin(message[row]) + shifts, std::end(message[row]));
+	    shifts++;
     }
 }
+
 
 /*
  * This function calculates x^n for polynomial evaluation.
@@ -66,6 +72,7 @@ int power(int x, int n) {
     }
     return x * power(x, n - 1);
 }
+
 
 /*
  * This function evaluates four different polynomials, one for each row in the column.
